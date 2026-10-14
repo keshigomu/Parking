@@ -1,0 +1,1187 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>車庫入れ・駐車シミュレーター</title>
+  <style>
+    :root {
+      --bg-color: #0f172a;
+      --panel-bg: rgba(30, 41, 59, 0.85);
+      --panel-border: #334155;
+      --text-main: #f8fafc;
+      --text-sub: #94a3b8;
+      --accent-blue: #3b82f6;
+      --accent-green: #10b981;
+      --accent-red: #ef4444;
+      --accent-yellow: #f59e0b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Side Panel */
+    #sidebar {
+      width: 360px;
+      min-width: 360px;
+      height: 100%;
+      background: var(--panel-bg);
+      border-right: 1px solid var(--panel-border);
+      backdrop-filter: blur(12px);
+      display: flex;
+      flex-direction: column;
+      z-index: 10;
+      box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .sidebar-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--panel-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .sidebar-header h1 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid var(--panel-border);
+      background: rgba(15, 23, 42, 0.5);
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      background: none;
+      color: var(--text-sub);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .tab-btn.active {
+      color: var(--accent-blue);
+      border-bottom: 2px solid var(--accent-blue);
+      background: rgba(59, 130, 246, 0.1);
+    }
+
+    .panel-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .panel-content::-webkit-scrollbar {
+      width: 6px;
+    }
+    .panel-content::-webkit-scrollbar-thumb {
+      background: var(--panel-border);
+      border-radius: 3px;
+    }
+
+    .section-title {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-sub);
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .control-group {
+      background: rgba(15, 23, 42, 0.4);
+      border: 1px solid var(--panel-border);
+      border-radius: 8px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .input-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.85rem;
+    }
+
+    .input-row label {
+      color: var(--text-sub);
+    }
+
+    .input-val {
+      font-weight: 600;
+      color: var(--accent-blue);
+      font-family: monospace;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      height: 4px;
+      border-radius: 2px;
+      background: #334155;
+      outline: none;
+      accent-color: var(--accent-blue);
+    }
+
+    select, button {
+      background: #1e293b;
+      border: 1px solid var(--panel-border);
+      color: var(--text-main);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    button:hover {
+      background: #334155;
+    }
+
+    .btn-primary {
+      background: var(--accent-blue);
+      border-color: var(--accent-blue);
+      color: #fff;
+      font-weight: 600;
+    }
+    .btn-primary:hover {
+      background: #2563eb;
+    }
+
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.2);
+      border-color: var(--accent-red);
+      color: var(--accent-red);
+    }
+    .btn-danger:hover {
+      background: rgba(239, 68, 68, 0.4);
+    }
+
+    .btn-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+
+    .btn-grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 6px;
+    }
+
+    /* Canvas Area */
+    #canvas-container {
+      flex: 1;
+      position: relative;
+      background: #090d16;
+      overflow: hidden;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* HUD Controls */
+    #hud-controls {
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid var(--panel-border);
+      padding: 12px 20px;
+      border-radius: 16px;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+
+    .wheel-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      width: 160px;
+    }
+
+    .pedal-group {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn-pedal {
+      width: 64px;
+      height: 64px;
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: bold;
+      gap: 4px;
+    }
+
+    .btn-accel {
+      background: var(--accent-green);
+      border-color: var(--accent-green);
+      color: #fff;
+    }
+    .btn-accel:active { background: #059669; }
+
+    .btn-brake {
+      background: var(--accent-red);
+      border-color: var(--accent-red);
+      color: #fff;
+    }
+    .btn-brake:active { background: #dc2626; }
+
+    .gear-toggle {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      background: #0f172a;
+      padding: 4px;
+      border-radius: 8px;
+    }
+
+    .gear-btn {
+      padding: 6px 12px;
+      font-size: 0.75rem;
+      font-weight: bold;
+      border: none;
+      border-radius: 6px;
+      color: var(--text-sub);
+    }
+
+    .gear-btn.active {
+      background: var(--accent-blue);
+      color: #fff;
+    }
+
+    /* Warning Overlay */
+    #warning-badge {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(239, 68, 68, 0.9);
+      color: #fff;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-weight: bold;
+      font-size: 0.9rem;
+      display: none;
+      animation: pulse 1s infinite;
+      box-shadow: 0 0 15px rgba(239, 68, 68, 0.5);
+    }
+
+    @keyframes pulse {
+      0% { opacity: 0.8; transform: translateX(-50%) scale(1); }
+      50% { opacity: 1; transform: translateX(-50%) scale(1.05); }
+      100% { opacity: 0.8; transform: translateX(-50%) scale(1); }
+    }
+
+    .unit { font-size: 0.75rem; color: var(--text-sub); margin-left: 2px; }
+  </style>
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <div id="sidebar">
+    <div class="sidebar-header">
+      <h1>駐車・車庫入れシミュレーター</h1>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('car')">車両設定</button>
+      <button class="tab-btn" onclick="switchTab('garage')">車庫・環境</button>
+      <button class="tab-btn" onclick="switchTab('adjust')">微調整</button>
+    </div>
+
+    <!-- TAB 1: CAR SETTINGS -->
+    <div id="tab-car" class="panel-content">
+      <div class="section-title">寸法設定 (ミリメートル/メートル)</div>
+      
+      <div class="control-group">
+        <div class="input-row">
+          <label>全長 (Length)</label>
+          <span class="input-val" id="val-length">4400<span class="unit">mm</span></span>
+        </div>
+        <input type="range" id="input-length" min="3000" max="5500" step="50" value="4400">
+
+        <div class="input-row">
+          <label>全幅 (Width)</label>
+          <span class="input-val" id="val-width">1795<span class="unit">mm</span></span>
+        </div>
+        <input type="range" id="input-width" min="1400" max="2100" step="10" value="1795">
+
+        <div class="input-row">
+          <label>ホイールベース (Wheelbase)</label>
+          <span class="input-val" id="val-wheelbase">2640<span class="unit">mm</span></span>
+        </div>
+        <input type="range" id="input-wheelbase" min="1800" max="3500" step="10" value="2640">
+
+        <div class="input-row">
+          <label>フロントオーバーハング</label>
+          <span class="input-val" id="val-front-hang">860<span class="unit">mm</span></span>
+        </div>
+        <input type="range" id="input-front-hang" min="500" max="1300" step="10" value="860">
+
+        <div class="input-row">
+          <label>最小回転半径 (Min Turning Radius)</label>
+          <span class="input-val" id="val-min-radius">5.3<span class="unit">m</span></span>
+        </div>
+        <input type="range" id="input-min-radius" min="4.0" max="7.0" step="0.1" value="5.3">
+      </div>
+
+      <div class="section-title">プリセット車両</div>
+      <div class="btn-grid-2">
+        <button onclick="applyCarPreset('compact')">軽・コンパクト</button>
+        <button onclick="applyCarPreset('sedan')">標準セダン/SUV</button>
+        <button onclick="applyCarPreset('minivan')">大型ミニバン</button>
+        <button onclick="applyCarPreset('sports')">スポーツカー</button>
+      </div>
+    </div>
+
+    <!-- TAB 2: GARAGE SETTINGS -->
+    <div id="tab-garage" class="panel-content" style="display:none;">
+      <div class="section-title">車庫・道路寸法</div>
+      
+      <div class="control-group">
+        <div class="input-row">
+          <label>車庫 幅 (Garage Width)</label>
+          <span class="input-val" id="val-g-width">2.7<span class="unit">m</span></span>
+        </div>
+        <input type="range" id="input-g-width" min="2.0" max="4.5" step="0.1" value="2.7">
+
+        <div class="input-row">
+          <label>車庫 奥行 (Garage Depth)</label>
+          <span class="input-val" id="val-g-depth">5.3<span class="unit">m</span></span>
+        </div>
+        <input type="range" id="input-g-depth" min="4.0" max="7.0" step="0.1" value="5.3">
+
+        <div class="input-row">
+          <label>前面道路 幅 (Road Width)</label>
+          <span class="input-val" id="val-road-width">4.0<span class="unit">m</span></span>
+        </div>
+        <input type="range" id="input-road-width" min="2.5" max="8.0" step="0.1" value="4.0">
+      </div>
+
+      <div class="section-title">隣接フリースペース (空き空間)</div>
+      <div class="control-group">
+        <div class="input-row">
+          <label>配置場所</label>
+          <select id="select-free-pos" onchange="updateGarageParams()">
+            <option value="none">なし (標準車庫)</option>
+            <option value="left-front" selected>車庫の左側 (道路寄り)</option>
+            <option value="left-back">車庫の左奥</option>
+            <option value="right-front">車庫の右側 (道路寄り)</option>
+            <option value="right-back">車庫の右奥</option>
+          </select>
+        </div>
+
+        <div class="input-row">
+          <label>スペース 幅</label>
+          <span class="input-val" id="val-free-w">1.5<span class="unit">m</span></span>
+        </div>
+        <input type="range" id="input-free-w" min="0.5" max="4.0" step="0.1" value="1.5" oninput="updateGarageParams()">
+
+        <div class="input-row">
+          <label>スペース 奥行</label>
+          <span class="input-val" id="val-free-d">2.0<span class="unit">m</span></span>
+        </div>
+        <input type="range" id="input-free-d" min="0.5" max="4.0" step="0.1" value="2.0" oninput="updateGarageParams()">
+      </div>
+
+      <div class="section-title">表示アシスト</div>
+      <div class="control-group">
+        <label><input type="checkbox" id="check-trajectory" checked> 旋回中心 & 予想軌跡線 (内輪差・外輪差)</label>
+        <label><input type="checkbox" id="check-sensors" checked> 壁面接近センサー</label>
+      </div>
+    </div>
+
+    <!-- TAB 3: ADJUSTMENT -->
+    <div id="tab-adjust" class="panel-content" style="display:none;">
+      <div class="section-title">車両のダイレクト位置・角度移動</div>
+      
+      <div class="control-group">
+        <div class="input-row">
+          <label>移動ステップ幅</label>
+          <select id="select-move-step">
+            <option value="0.01">1 cm</option>
+            <option value="0.05">5 cm</option>
+            <option value="0.1" selected>10 cm</option>
+            <option value="0.5">50 cm</option>
+          </select>
+        </div>
+
+        <div class="btn-grid" style="margin-top: 6px;">
+          <div></div>
+          <button onclick="moveCarDirect(0, -1)">▲ 前進</button>
+          <div></div>
+          <button onclick="moveCarDirect(-1, 0)">◄ 左移動</button>
+          <button onclick="resetCarPos()">初期化</button>
+          <button onclick="moveCarDirect(1, 0)">右移動 ►</button>
+          <div></div>
+          <button onclick="moveCarDirect(0, 1)">▼ 後退</button>
+          <div></div>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <div class="input-row">
+          <label>回転ステップ幅</label>
+          <select id="select-rotate-step">
+            <option value="1">1 °</option>
+            <option value="5" selected>5 °</option>
+            <option value="10">10 °</option>
+          </select>
+        </div>
+
+        <div class="btn-grid-2" style="margin-top: 6px;">
+          <button onclick="rotateCarDirect(-1)">↺ 左回転</button>
+          <button onclick="rotateCarDirect(1)">↻ 右回転</button>
+        </div>
+
+        <button class="btn-primary" style="margin-top: 8px;" onclick="flipCar180()">車の向きを反転 (180°)</button>
+      </div>
+
+      <div class="section-title">アプローチ体勢 (初期選択)</div>
+      <div class="btn-grid-2">
+        <button onclick="setApproach(180)">右→左進入 (180°)</button>
+        <button onclick="setApproach(0)">左→右進入 (0°)</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Main Display Area -->
+  <div id="canvas-container">
+    <div id="warning-badge">⚠️ 接触注意！</div>
+    <canvas id="simCanvas"></canvas>
+
+    <!-- Steering & Driving Controls HUD -->
+    <div id="hud-controls">
+      <div class="gear-toggle">
+        <button id="gear-D" class="gear-btn active" onclick="setGear('D')">D (前進)</button>
+        <button id="gear-R" class="gear-btn" onclick="setGear('R')">R (バック)</button>
+      </div>
+
+      <div class="wheel-container">
+        <div class="input-row" style="width: 100%; font-size: 0.75rem;">
+          <span>◄ 左切</span>
+          <span style="color:var(--text-main); font-weight:bold;">ハンドル</span>
+          <span>右切 ►</span>
+        </div>
+        <input type="range" id="hud-steer" min="-1" max="1" step="0.05" value="0">
+        <button style="font-size:0.7rem; padding: 2px 8px;" onclick="resetSteer()">直進位置に戻す</button>
+      </div>
+
+      <div class="pedal-group">
+        <button class="btn-pedal btn-brake" id="btn-brake-pedal">
+          <span>🛑</span>
+          <span>ブレーキ</span>
+        </button>
+        <button class="btn-pedal btn-accel" id="btn-accel-pedal">
+          <span>▲</span>
+          <span>アクセル</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- State & Variables ---
+    const state = {
+      // Car dimensions (in meters)
+      length: 4.4,
+      width: 1.795,
+      wheelbase: 2.64,
+      frontHang: 0.86,
+      rearHang: 0.90, // length - wheelbase - frontHang
+      minRadius: 5.3, // Min turning radius at front-outer corner
+
+      // Dynamic Steering
+      maxSteerAngle: 0.6, // radians (~35 deg) calculated based on minRadius
+      steerAngle: 0, // current steer angle
+
+      // Car Pose (meters, radians)
+      x: 3.2,
+      y: 0, // set in init
+      heading: Math.PI, // 180 deg = pointing left (West) default
+      speed: 0,
+      gear: 'D', // 'D' or 'R'
+
+      // Garage Params (meters)
+      gWidth: 2.7,
+      gDepth: 5.3,
+      roadWidth: 4.0,
+
+      // Free space pocket
+      freePos: 'left-front',
+      freeW: 1.5,
+      freeD: 2.0,
+
+      // Controls
+      accelPressed: false,
+      brakePressed: false,
+
+      // Status
+      isColliding: false
+    };
+
+    // Canvas Context
+    let canvas, ctx;
+    let scale = 50; // pixels per meter
+    let originX = 0, originY = 0; // Canvas center offset
+
+    // --- Initialization ---
+    window.onload = () => {
+      canvas = document.getElementById('simCanvas');
+      ctx = canvas.getContext('2d');
+
+      resizeCanvas();
+      window.addEventListener('resize', resizeCanvas);
+
+      bindInputs();
+      updateCarCalculations();
+      resetCarPos();
+
+      // Start animation loop
+      requestAnimationFrame(gameLoop);
+    };
+
+    function resizeCanvas() {
+      const container = document.getElementById('canvas-container');
+      canvas.width = container.clientWidth;
+      canvas.height = container.clientHeight;
+      originX = canvas.width / 2;
+      originY = canvas.height / 2;
+    }
+
+    function switchTab(tab) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.panel-content').forEach(p => p.style.display = 'none');
+
+      if (tab === 'car') {
+        document.querySelectorAll('.tab-btn')[0].classList.add('active');
+        document.getElementById('tab-car').style.display = 'flex';
+      } else if (tab === 'garage') {
+        document.querySelectorAll('.tab-btn')[1].classList.add('active');
+        document.getElementById('tab-garage').style.display = 'flex';
+      } else if (tab === 'adjust') {
+        document.querySelectorAll('.tab-btn')[2].classList.add('active');
+        document.getElementById('tab-adjust').style.display = 'flex';
+      }
+    }
+
+    // --- Input Binding ---
+    function bindInputs() {
+      // Car controls
+      const bindRange = (id, targetStateKey, valId, scaleFactor = 1, callback) => {
+        const el = document.getElementById(id);
+        el.addEventListener('input', (e) => {
+          const val = parseFloat(e.target.value) / scaleFactor;
+          state[targetStateKey] = val;
+          document.getElementById(valId).childNodes[0].nodeValue = e.target.value;
+          if (callback) callback();
+        });
+      };
+
+      bindRange('input-length', 'length', 'val-length', 1000, updateCarCalculations);
+      bindRange('input-width', 'width', 'val-width', 1000, updateCarCalculations);
+      bindRange('input-wheelbase', 'wheelbase', 'val-wheelbase', 1000, updateCarCalculations);
+      bindRange('input-front-hang', 'frontHang', 'val-front-hang', 1000, updateCarCalculations);
+      bindRange('input-min-radius', 'minRadius', 'val-min-radius', 1, updateCarCalculations);
+
+      bindRange('input-g-width', 'gWidth', 'val-g-width', 1);
+      bindRange('input-g-depth', 'gDepth', 'val-g-depth', 1);
+      bindRange('input-road-width', 'roadWidth', 'val-road-width', 1);
+
+      // HUD Steer slider
+      const hudSteer = document.getElementById('hud-steer');
+      hudSteer.addEventListener('input', (e) => {
+        state.steerAngle = parseFloat(e.target.value) * state.maxSteerAngle;
+      });
+
+      // Pedals
+      const accelBtn = document.getElementById('btn-accel-pedal');
+      const brakeBtn = document.getElementById('btn-brake-pedal');
+
+      const setAccel = (pressed) => state.accelPressed = pressed;
+      const setBrake = (pressed) => state.brakePressed = pressed;
+
+      accelBtn.addEventListener('mousedown', () => setAccel(true));
+      accelBtn.addEventListener('mouseup', () => setAccel(false));
+      accelBtn.addEventListener('touchstart', (e) => { e.preventDefault(); setAccel(true); });
+      accelBtn.addEventListener('touchend', (e) => { e.preventDefault(); setAccel(false); });
+
+      brakeBtn.addEventListener('mousedown', () => setBrake(true));
+      brakeBtn.addEventListener('mouseup', () => setBrake(false));
+      brakeBtn.addEventListener('touchstart', (e) => { e.preventDefault(); setBrake(true); });
+      brakeBtn.addEventListener('touchend', (e) => { e.preventDefault(); setBrake(false); });
+
+      // Keyboard Controls
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') state.accelPressed = true;
+        if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') state.brakePressed = true;
+        if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+          hudSteer.value = Math.max(-1, parseFloat(hudSteer.value) - 0.1);
+          state.steerAngle = parseFloat(hudSteer.value) * state.maxSteerAngle;
+        }
+        if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+          hudSteer.value = Math.min(1, parseFloat(hudSteer.value) + 0.1);
+          state.steerAngle = parseFloat(hudSteer.value) * state.maxSteerAngle;
+        }
+      });
+
+      window.addEventListener('keyup', (e) => {
+        if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') state.accelPressed = false;
+        if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') state.brakePressed = false;
+      });
+    }
+
+    function updateCarCalculations() {
+      // Adjust rear overhang based on length, wheelbase, and front hang
+      state.rearHang = Math.max(0.3, state.length - state.wheelbase - state.frontHang);
+
+      // Max steering angle formula based on Ackermann geometry & outer front corner turning radius
+      // R_outer^2 = (wheelbase / sin(delta))^2 + (width/2 + frontHang)^2 approximately
+      // We calculate max delta for Ackerman inner/center wheel:
+      const effectiveFrontLength = state.wheelbase + state.frontHang;
+      const halfW = state.width / 2;
+      const rCenter = Math.sqrt(Math.max(1, Math.pow(state.minRadius, 2) - Math.pow(effectiveFrontLength, 2))) - halfW;
+      state.maxSteerAngle = Math.atan(state.wheelbase / Math.max(1, rCenter));
+    }
+
+    function updateGarageParams() {
+      state.freePos = document.getElementById('select-free-pos').value;
+      state.freeW = parseFloat(document.getElementById('input-free-w').value);
+      state.freeD = parseFloat(document.getElementById('input-free-d').value);
+
+      document.getElementById('val-free-w').childNodes[0].nodeValue = state.freeW;
+      document.getElementById('val-free-d').childNodes[0].nodeValue = state.freeD;
+    }
+
+    function resetSteer() {
+      document.getElementById('hud-steer').value = 0;
+      state.steerAngle = 0;
+    }
+
+    function setGear(g) {
+      state.gear = g;
+      document.getElementById('gear-D').classList.toggle('active', g === 'D');
+      document.getElementById('gear-R').classList.toggle('active', g === 'R');
+    }
+
+    function resetCarPos() {
+      // Place car safely on the road heading west (180 deg)
+      state.x = 3.2;
+      state.y = -(state.roadWidth / 2);
+      state.heading = Math.PI; // 180 deg
+      state.speed = 0;
+      resetSteer();
+    }
+
+    function setApproach(headingDeg) {
+      state.heading = headingDeg * (Math.PI / 180);
+      state.x = headingDeg === 180 ? 3.2 : -3.2;
+      state.y = -(state.roadWidth / 2);
+      state.speed = 0;
+      resetSteer();
+    }
+
+    function flipCar180() {
+      state.heading = (state.heading + Math.PI) % (Math.PI * 2);
+    }
+
+    function moveCarDirect(dxFactor, dyFactor) {
+      const step = parseFloat(document.getElementById('select-move-step').value);
+      // Move relative to current heading if dy, or lateral if dx
+      const cos = Math.cos(state.heading);
+      const sin = Math.sin(state.heading);
+
+      // dxFactor = lateral (left/right), dyFactor = forward/backward
+      const forwardMeters = -dyFactor * step;
+      const lateralMeters = dxFactor * step;
+
+      state.x += forwardMeters * cos - lateralMeters * sin;
+      state.y += forwardMeters * sin + lateralMeters * cos;
+    }
+
+    function rotateCarDirect(direction) {
+      const stepDeg = parseFloat(document.getElementById('select-rotate-step').value);
+      const rad = (stepDeg * Math.PI / 180) * direction;
+      state.heading += rad;
+    }
+
+    function applyCarPreset(type) {
+      if (type === 'compact') {
+        setCarInputs(3395, 1475, 2450, 650, 4.4);
+      } else if (type === 'sedan') {
+        setCarInputs(4400, 1795, 2640, 860, 5.3);
+      } else if (type === 'minivan') {
+        setCarInputs(4945, 1850, 3000, 920, 5.7);
+      } else if (type === 'sports') {
+        setCarInputs(4380, 1810, 2470, 910, 5.2);
+      }
+    }
+
+    function setCarInputs(l, w, wb, fh, r) {
+      document.getElementById('input-length').value = l;
+      document.getElementById('input-width').value = w;
+      document.getElementById('input-wheelbase').value = wb;
+      document.getElementById('input-front-hang').value = fh;
+      document.getElementById('input-min-radius').value = r;
+
+      state.length = l / 1000;
+      state.width = w / 1000;
+      state.wheelbase = wb / 1000;
+      state.frontHang = fh / 1000;
+      state.minRadius = r;
+
+      document.getElementById('val-length').childNodes[0].nodeValue = l;
+      document.getElementById('val-width').childNodes[0].nodeValue = w;
+      document.getElementById('val-wheelbase').childNodes[0].nodeValue = wb;
+      document.getElementById('val-front-hang').childNodes[0].nodeValue = fh;
+      document.getElementById('val-min-radius').childNodes[0].nodeValue = r;
+
+      updateCarCalculations();
+    }
+
+    // --- Physics Simulation Loop ---
+    let lastTime = performance.now();
+
+    function gameLoop(now) {
+      const dt = Math.min(0.1, (now - lastTime) / 1000);
+      lastTime = now;
+
+      updatePhysics(dt);
+      checkCollisions();
+      render();
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    function updatePhysics(dt) {
+      // Acceleration & Braking
+      const maxSpeed = 2.5; // m/s (~9 km/h for realistic parking)
+      const accel = 2.0;
+      const friction = 3.0;
+
+      if (state.accelPressed) {
+        const dir = state.gear === 'D' ? 1 : -1;
+        state.speed += dir * accel * dt;
+      } else if (state.brakePressed) {
+        if (state.speed > 0) state.speed = Math.max(0, state.speed - friction * 2 * dt);
+        else if (state.speed < 0) state.speed = Math.min(0, state.speed + friction * 2 * dt);
+      } else {
+        // Natural friction stop
+        if (state.speed > 0) state.speed = Math.max(0, state.speed - friction * dt);
+        else if (state.speed < 0) state.speed = Math.min(0, state.speed + friction * dt);
+      }
+
+      state.speed = Math.max(-maxSpeed, Math.min(maxSpeed, state.speed));
+
+      // Ackermann Kinematic Motion (Center of Rear Axle as reference point)
+      if (Math.abs(state.speed) > 0.001) {
+        if (Math.abs(state.steerAngle) < 0.001) {
+          // Straight line motion
+          state.x += state.speed * Math.cos(state.heading) * dt;
+          state.y += state.speed * Math.sin(state.heading) * dt;
+        } else {
+          // Curved motion around Instantaneous Center of Rotation (ICR)
+          const R = state.wheelbase / Math.tan(state.steerAngle); // Turning radius at rear axle center
+          const angularVelocity = state.speed / R;
+
+          state.heading += angularVelocity * dt;
+          state.x += state.speed * Math.cos(state.heading) * dt;
+          state.y += state.speed * Math.sin(state.heading) * dt;
+        }
+      }
+    }
+
+    // --- Collision Detection ---
+    function checkCollisions() {
+      // Get car polygon corners in world coordinates
+      const corners = getCarCorners();
+      let hit = false;
+
+      // Check collision with walls
+      for (const corner of corners) {
+        if (isPointInsideWall(corner.x, corner.y)) {
+          hit = true;
+          break;
+        }
+      }
+
+      state.isColliding = hit;
+      document.getElementById('warning-badge').style.display = hit ? 'block' : 'none';
+    }
+
+    function getCarCorners() {
+      const cos = Math.cos(state.heading);
+      const sin = Math.sin(state.heading);
+
+      // Rear axle center is (state.x, state.y)
+      // Front bumper offset: + (wheelbase + frontHang)
+      // Rear bumper offset: - rearHang
+      const fX = state.wheelbase + state.frontHang;
+      const rX = -state.rearHang;
+      const halfW = state.width / 2;
+
+      const localCorners = [
+        { x: fX, y: -halfW }, // Front Right
+        { x: fX, y: halfW },  // Front Left
+        { x: rX, y: halfW },  // Rear Left
+        { x: rX, y: -halfW }  // Rear Right
+      ];
+
+      return localCorners.map(pt => ({
+        x: state.x + (pt.x * cos - pt.y * sin),
+        y: state.y + (pt.x * sin + pt.y * cos)
+      }));
+    }
+
+    function isPointInsideWall(x, y) {
+      const gW = state.gWidth;
+      const gD = state.gDepth;
+      const rW = state.roadWidth;
+      const halfGW = gW / 2;
+
+      // Road Area Bounds: Road is between y = -rW to 0
+      // Garage Area Bounds: x in [-halfGW, halfGW], y in [0, gD]
+
+      // Check if point is outside the drivable space
+      
+      // 1. Above Road (Opposite side wall)
+      if (y < -rW) return true;
+
+      // 2. Garage Back Wall
+      if (y > gD) return true;
+
+      // 3. Left / Right Walls outside garage and free space
+      const pos = state.freePos;
+      const fW = state.freeW;
+      const fD = state.freeD;
+
+      // Default boundaries for standard garage
+      let leftWallX = -halfGW;
+      let rightWallX = halfGW;
+
+      // Check Garage zone (y >= 0)
+      if (y >= 0 && y <= gD) {
+        // Left free space modification
+        if (pos === 'left-front' && y <= fD && x >= -halfGW - fW && x < -halfGW) return false;
+        if (pos === 'left-back' && y >= (gD - fD) && x >= -halfGW - fW && x < -halfGW) return false;
+
+        // Right free space modification
+        if (pos === 'right-front' && y <= fD && x <= halfGW + fW && x > halfGW) return false;
+        if (pos === 'right-back' && y >= (gD - fD) && x <= halfGW + fW && x > halfGW) return false;
+
+        // Standard Garage Interior
+        if (x >= -halfGW && x <= halfGW) return false;
+
+        return true; // Hit side wall
+      }
+
+      // Check Road zone (y < 0)
+      if (y < 0) {
+        // Road is infinitely wide left/right for simulation
+        return false;
+      }
+
+      return false;
+    }
+
+    // --- Rendering ---
+    function render() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      ctx.save();
+      // Translate to screen center
+      ctx.translate(originX, originY);
+      ctx.scale(scale, scale);
+
+      // Draw Environment (Road, Garage, Free Space)
+      drawEnvironment();
+
+      // Draw Vehicle Trajectory & Center of Rotation
+      if (document.getElementById('check-trajectory').checked) {
+        drawTrajectories();
+      }
+
+      // Draw Car Body & Wheels
+      drawCar();
+
+      ctx.restore();
+    }
+
+    function drawEnvironment() {
+      const gW = state.gWidth;
+      const gD = state.gDepth;
+      const rW = state.roadWidth;
+      const halfGW = gW / 2;
+
+      // 1. Road Background
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(-20, -rW, 40, rW);
+
+      // Road markings (Dashed center line)
+      ctx.strokeStyle = '#475569';
+      ctx.lineWidth = 0.05;
+      ctx.setLineDash([0.4, 0.4]);
+      ctx.beginPath();
+      ctx.moveTo(-20, -rW / 2);
+      ctx.lineTo(20, -rW / 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Road Curb (Top)
+      ctx.strokeStyle = '#64748b';
+      ctx.lineWidth = 0.1;
+      ctx.beginPath();
+      ctx.moveTo(-20, -rW);
+      ctx.lineTo(20, -rW);
+      ctx.stroke();
+
+      // 2. Garage Interior Area
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(-halfGW, 0, gW, gD);
+
+      // Draw Parking Target Line (Stop line inside garage)
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 0.08;
+      ctx.beginPath();
+      ctx.moveTo(-halfGW + 0.2, gD - 0.5);
+      ctx.lineTo(halfGW - 0.2, gD - 0.5);
+      ctx.stroke();
+
+      // Garage Boundary / Target Frame
+      ctx.strokeStyle = '#3b82f6';
+      ctx.lineWidth = 0.04;
+      ctx.setLineDash([0.2, 0.2]);
+      ctx.strokeRect(-halfGW, 0, gW, gD);
+      ctx.setLineDash([]);
+
+      // 3. Free Space Pocket Area
+      const pos = state.freePos;
+      const fW = state.freeW;
+      const fD = state.freeD;
+
+      if (pos !== 'none') {
+        let fx = 0, fy = 0;
+        if (pos === 'left-front') { fx = -halfGW - fW; fy = 0; }
+        else if (pos === 'left-back') { fx = -halfGW - fW; fy = gD - fD; }
+        else if (pos === 'right-front') { fx = halfGW; fy = 0; }
+        else if (pos === 'right-back') { fx = halfGW; fy = gD - fD; }
+
+        ctx.fillStyle = '#1e1b4b'; // Slightly lighter tinted background for free space
+        ctx.fillRect(fx, fy, fW, fD);
+
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 0.04;
+        ctx.setLineDash([0.15, 0.15]);
+        ctx.strokeRect(fx, fy, fW, fD);
+        ctx.setLineDash([]);
+      }
+
+      // 4. Solid Walls / Structures Draw
+      ctx.fillStyle = '#334155';
+
+      // Left Wall Structure
+      ctx.beginPath();
+      ctx.moveTo(-20, 0);
+      if (pos === 'left-front') {
+        ctx.lineTo(-halfGW - fW, 0);
+        ctx.lineTo(-halfGW - fW, fD);
+        ctx.lineTo(-halfGW, fD);
+        ctx.lineTo(-halfGW, gD);
+      } else if (pos === 'left-back') {
+        ctx.lineTo(-halfGW, 0);
+        ctx.lineTo(-halfGW, gD - fD);
+        ctx.lineTo(-halfGW - fW, gD - fD);
+        ctx.lineTo(-halfGW - fW, gD);
+        ctx.lineTo(-halfGW, gD);
+      } else {
+        ctx.lineTo(-halfGW, 0);
+        ctx.lineTo(-halfGW, gD);
+      }
+      ctx.lineTo(-20, gD);
+      ctx.fill();
+
+      // Right Wall Structure
+      ctx.beginPath();
+      ctx.moveTo(20, 0);
+      if (pos === 'right-front') {
+        ctx.lineTo(halfGW + fW, 0);
+        ctx.lineTo(halfGW + fW, fD);
+        ctx.lineTo(halfGW, fD);
+        ctx.lineTo(halfGW, gD);
+      } else if (pos === 'right-back') {
+        ctx.lineTo(halfGW, 0);
+        ctx.lineTo(halfGW, gD - fD);
+        ctx.lineTo(halfGW + fW, gD - fD);
+        ctx.lineTo(halfGW + fW, gD);
+        ctx.lineTo(halfGW, gD);
+      } else {
+        ctx.lineTo(halfGW, 0);
+        ctx.lineTo(halfGW, gD);
+      }
+      ctx.lineTo(20, gD);
+      ctx.fill();
+    }
+
+    function drawTrajectories() {
+      if (Math.abs(state.steerAngle) < 0.02) return; // Straight line, no circular trajectory
+
+      // Steering angle delta: positive = steer right, negative = steer left
+      // Correct Local Ackermann ICR Coordinates relative to Rear Axle Center:
+      // When steering right (steerAngle > 0), ICR is at local y = +R (to the right of vehicle heading)
+      // When steering left (steerAngle < 0), ICR is at local y = -R (to the left of vehicle heading)
+      const R = state.wheelbase / Math.tan(state.steerAngle);
+      
+      const cos = Math.cos(state.heading);
+      const sin = Math.sin(state.heading);
+
+      // Local ICR vector is (0, R)
+      // World ICR:
+      const icrX = state.x - R * sin;
+      const icrY = state.y + R * cos;
+
+      // Draw Center of Rotation (Red dot)
+      ctx.fillStyle = '#ef4444';
+      ctx.beginPath();
+      ctx.arc(icrX, icrY, 0.12, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Connect Rear Axle to ICR
+      ctx.strokeStyle = 'rgba(239, 68, 68, 0.4)';
+      ctx.lineWidth = 0.03;
+      ctx.setLineDash([0.1, 0.1]);
+      ctx.beginPath();
+      ctx.moveTo(state.x, state.y);
+      ctx.lineTo(icrX, icrY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Draw Key Trajectory Circles around ICR
+      const halfW = state.width / 2;
+
+      // Radii for corners from ICR
+      const rRearInner = Math.abs(R) - halfW;
+      const rRearOuter = Math.abs(R) + halfW;
+      
+      const frontDist = state.wheelbase + state.frontHang;
+      const rFrontOuter = Math.sqrt(Math.pow(Math.abs(R) + halfW, 2) + Math.pow(frontDist, 2));
+
+      // Draw Inner Rear Wheel Path (Blue)
+      ctx.strokeStyle = 'rgba(59, 130, 246, 0.5)';
+      ctx.lineWidth = 0.03;
+      ctx.beginPath();
+      ctx.arc(icrX, icrY, rRearInner, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Draw Outer Front Corner Sweep Arc (Yellow - Outer Turning Radius)
+      ctx.strokeStyle = 'rgba(245, 158, 11, 0.6)';
+      ctx.lineWidth = 0.04;
+      ctx.beginPath();
+      ctx.arc(icrX, icrY, rFrontOuter, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    function drawCar() {
+      ctx.save();
+      ctx.translate(state.x, state.y);
+      ctx.rotate(state.heading);
+
+      const halfW = state.width / 2;
+      const fX = state.wheelbase + state.frontHang;
+      const rX = -state.rearHang;
+
+      // Car Body Color (Green normal, Red when colliding)
+      ctx.fillStyle = state.isColliding ? 'rgba(239, 68, 68, 0.85)' : 'rgba(16, 185, 129, 0.85)';
+      ctx.strokeStyle = state.isColliding ? '#ef4444' : '#10b981';
+      ctx.lineWidth = 0.05;
+
+      // Main Chassis Box
+      ctx.beginPath();
+      ctx.roundRect(rX, -halfW, state.length, state.width, 0.2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Roof / Cabin
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.6)';
+      ctx.beginPath();
+      ctx.roundRect(rX + state.length * 0.25, -halfW * 0.8, state.length * 0.45, state.width * 1.6, 0.15);
+      ctx.fill();
+
+      // Headlights
+      ctx.fillStyle = '#fef08a';
+      ctx.fillRect(fX - 0.1, -halfW + 0.1, 0.1, 0.3);
+      ctx.fillRect(fX - 0.1, halfW - 0.4, 0.1, 0.3);
+
+      // Taillights
+      ctx.fillStyle = '#ef4444';
+      ctx.fillRect(rX, -halfW + 0.1, 0.1, 0.3);
+      ctx.fillRect(rX, halfW - 0.4, 0.1, 0.3);
+
+      // Wheels
+      const tireL = 0.6, tireW = 0.22;
+
+      // Rear Wheels (Fixed)
+      drawWheel(0, -halfW + 0.1, 0, tireL, tireW);
+      drawWheel(0, halfW - 0.1, 0, tireL, tireW);
+
+      // Front Wheels (Steered)
+      drawWheel(state.wheelbase, -halfW + 0.1, state.steerAngle, tireL, tireW);
+      drawWheel(state.wheelbase, halfW - 0.1, state.steerAngle, tireL, tireW);
+
+      ctx.restore();
+    }
+
+    function drawWheel(x, y, steerAngle, length, width) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(steerAngle);
+      ctx.fillStyle = '#1e293b';
+      ctx.strokeStyle = '#64748b';
+      ctx.lineWidth = 0.02;
+      ctx.fillRect(-length / 2, -width / 2, length, width);
+      ctx.strokeRect(-length / 2, -width / 2, length, width);
+      ctx.restore();
+    }
+  </script>
+</body>
+</html>
